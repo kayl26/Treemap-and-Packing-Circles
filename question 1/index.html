@@ -1,0 +1,223 @@
+<!doctype html>
+<html>
+  <head>
+    <script  src="https://cdnjs.cloudflare.com/ajax/libs/d3/4.2.8/d3.min.js" type="text/JavaScript"></script>
+    <meta charset="UTF-8"> 
+    </head>
+  <body>
+    <div id="viz"></div>
+    <svg style="width:500px;height:500px;">
+    </svg>
+    <div id="graphic"> 
+    </div>
+     <button id="b1">Remove "LIT" marks</button>
+    <script>
+
+      d3.json("task1.json", data => adj(data));
+
+     // convert the source data into object with array of sudent marks as needed
+      function aconv(d) {
+        var mdata = [];
+        var one = Object.values(d)[0];
+        one.forEach(item => mdata.push(...bconv(item)));
+        var marks = {Marks: mdata};
+        return marks;
+      }
+
+      // convert one student and marks object into an array of {student,subject,mark} objects
+      function bconv(d) {
+        var entries = Object.entries(d).filter(value => value[0] != "student");
+        var sdata = []
+        entries.forEach(item => sdata.push({student: d.student, subject: item[0], mark: item[1]}));
+        return sdata;
+      }
+
+      function adj(data) {
+        // converting
+        data = aconv(data);
+        document.getElementById("b1").onclick = function(){exitData(data)}; //creating the button
+
+        // nested data
+         var nestedMarks = d3.nest()
+          .key(d => d.student)
+          .entries(data.Marks);
+
+        var packableMarks = {id: "All Marks", values: nestedMarks};
+        var root = d3.hierarchy(packableMarks, d => d.values)
+          .sum(() => 1);
+
+       viz(root);
+       console.log(root);
+
+      }
+
+      function viz(root){
+        
+        var packChart = d3.pack();
+          packChart.padding(3);
+          packChart.size([430,430]);
+
+        var depthScale = d3.scaleOrdinal().range(["#5EAFC6", "#FE9922", "#93c464", "#75739F"]);   
+      //to set colour scale by mark range
+        var colourScale = d3.scaleLinear()
+          .domain([0, 100])
+          .range(["#98FB98", "#006400"])
+
+        d3.select("svg")
+          .append("g")
+            .attr("transform", "translate(30,30)")
+            .selectAll("g")
+            .data(packChart(root).descendants())
+            .enter()
+            .append("g")
+            .attr("class", "node")
+            //.attr("transform", d => 'translate({d.x},{d.y})');
+
+        d3.selectAll("g.node")
+          .append("circle")
+            .attr("r", d => d.r)
+            .attr("cx", d => d.x)
+            .attr("cy", d => d.y)
+            .style("fill", d => d.data.mark ? colourScale(d.data.mark) : depthScale(d.depth))
+            .style("stroke", "black")
+
+        d3.selectAll("g.node")
+        .append("text")
+          //.attr("transform", "translate(50,20)")
+            .attr("x", function(d){ return d.x-5})  
+            .attr("y", function(d){ return d.y+5})
+          .text(d => d.data.subject)
+            .attr("font-size", "10px")
+            .attr("fill", "black");
+
+         d3.selectAll("g.node")
+        .append("text")
+          //.attr("transform", "translate(20,20)")
+            .attr("x", function(d){ return d.x - 47})  
+            .attr("y", function(d){ return d.y + 30})
+          .text(d => d.data.key)
+            .attr("font-size", "14px")
+            .attr("fill", "darkblue");
+
+          //Append title
+          d3.selectAll("g")
+          .append("text")
+            .attr("x", 210)
+            .attr("y",-8)
+            .style("text-anchor", "middle")
+            .style("font-size", "20px")
+            .attr("fill", "dark gray")
+            .text("Student Marks");
+
+
+        // Create colour scale and legend
+
+        //Append a defs (for definition) element to your SVG
+        var defs = d3.select("svg").append("defs");
+
+        //Append a linearGradient element to the defs and give it a unique id
+        var linearGradient = defs.append("linearGradient")
+          .attr("id", "linear-gradient");
+
+        //Horizontal gradient
+        linearGradient
+          .attr("x1", "0%")
+          .attr("y1", "0%")
+          .attr("x2", "100%")
+          .attr("y2", "0%");
+
+        //Set the color for the start (0%)
+        linearGradient.append("stop")
+          .attr("offset", "0%")
+          .attr("stop-color", "#98FB98"); //pale green
+
+        //Set the color for the end (100%)
+        linearGradient.append("stop")
+          .attr("offset", "100%")
+          .attr("stop-color", "#006400"); //dark green
+
+        //Add legend to svg
+        d3.select("svg")
+          .append("g")
+          .append("rect")
+            .attr("width", 151)
+            .attr("height", 15)
+            .attr("x", 340)
+            .attr("y", 470)
+            .style("fill", "url(#linear-gradient)");
+
+        d3.select("svg")
+          .append("circle")
+            .attr("cx", 470)
+            .attr("cy",425)
+            .attr("r", 14)
+            .attr("fill", "#FE9922")
+            .style("stroke", "black");
+
+         d3.select("svg")
+          .append("text")
+            .attr("x", 400)
+            .attr("y",430)
+            .text("Students")
+            .attr("font-size", "14px")
+             .attr("fill", "black");
+
+        d3.select("svg")
+          .append("circle")
+            .attr("cx", 470)
+            .attr("cy",455)
+            .attr("r", 14)
+            .attr("fill", "url(#linear-gradient)")
+            .style("stroke", "black");
+
+         d3.select("svg")
+          .append("text")
+            .attr("x", 400)
+            .attr("y",460)
+            .text("Subjects")
+            .attr("font-size", "14px")
+             .attr("fill", "black");
+
+         d3.select("svg")
+          .append("text")
+            .attr("x", 300)
+            .attr("y",480)
+            .text("Marks")
+            .attr("font-size", "14px")
+             .attr("fill", "black"); 
+            
+
+        //Set scale for Legend
+        var xScale = d3.scaleLinear().range([-150/2, 150/2]).domain([ 0, 100] );
+
+        //Define axis
+        var xAxis = d3.axisBottom()
+          .ticks(5)
+          .tickSize(14)
+          .scale(xScale);
+
+        //Set up X axis
+        d3.select("svg")
+          .append("g")
+          .attr("transform", "translate(415,470)")
+          .call(xAxis)
+
+      } 
+    function exitData(data) {
+      data.Marks = data.Marks.filter(p => p.subject!="LIT");
+      // nested data
+      var nestedMarks = d3.nest()
+        .key(d => d.student)
+        .entries(data.Marks);
+      var packableMarks = {id: "All Marks", values: nestedMarks};
+      var root = d3.hierarchy(packableMarks, d => d.values)
+        .sum(() => 1);
+        //.sum(d => d.mark);
+      d3.select("svg").selectAll("g").remove();
+      d3.select("svg").selectAll("text").remove();
+      viz(root);
+    }
+
+    </script>
+  </body>
+</html>

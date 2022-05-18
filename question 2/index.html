@@ -1,0 +1,125 @@
+<!doctype html>
+<html>
+  <head>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/4.2.8/d3.min.js" type="text/JavaScript"></script>
+    <style>
+    </style>
+  </head>
+  <body>
+    <div id="viz">
+    </div>
+    <script>
+
+    // set the dimensions and margins of the graph
+    var margin = {top: 12, right: 5, bottom: 15, left: 5},
+        width = 480 - margin.left - margin.right,
+        height = 480 - margin.top - margin.bottom;
+
+    // append the svg object to the body of the page
+    var svg = d3.select("#viz")
+      .append("svg")
+        .attr("width", width + margin.left + margin.right)
+        .attr("height", height + margin.top + margin.bottom)
+      .append("g")
+        .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+    d3.json("task2.json", viz);
+    
+
+    function viz(data) {
+
+      data.root.forEach(d=> d.size = Math.sqrt(d.size))
+
+        
+      var nestedFiles = d3.nest()
+        .key(d => d.Folder)
+        .entries(data.root);
+
+      nestedFiles.forEach(d => {
+        d.count = d.values.length
+        //d.size = d3.sum(d.values, p => Math.sqrt(p.size));
+      });
+      var packableFiles = {id: "Root", values: nestedFiles};
+      var root = d3.hierarchy(packableFiles, d => d.values)
+      //.sort(function(a, b) { return (a.value - b.value)})
+      .sum(d => d.filename ? d.size : undefined);
+
+      var treemapLayout = d3.treemap()
+        .size([width,height])
+        //.padding(d=> d.depth*3+12);
+        .paddingInner(2) //between rectangles
+        .paddingTop(10) //leave space for folder label
+        .paddingRight(5) //between blocks
+        .paddingBottom(7) 
+
+      treemapLayout(root);
+
+      // create colour scale
+      var colourScale = d3.scaleOrdinal().domain(["Audio", "Document", "Misc", "Videos"])
+        .range(["#75739F", "#FE9922", "#93c464", "#5EAFC6"]);
+
+      var pattern = /\w*\./
+
+
+        // add blocks and rectangles 
+        // set opacity and border for mp3 and mp4 files
+        svg
+          .selectAll("rect")
+          .data(root.leaves())
+          .enter()
+          .append("rect")
+          .attr('x', function (d) { return d.x0; })
+          .attr('y', function (d) { return d.y0; })
+          .attr('width', function (d) { return d.x1 - d.x0; })
+          .attr('height', function (d) { return d.y1 - d.y0; })
+          //.style("stroke", "black")
+          .style("stroke", function(d){ return d.data.filename.replace(pattern,'')=="mp3"|d.data.filename.replace(pattern,'')=="mp4"? "black": "white"})
+          .style("fill", function(d){ return colourScale(d.data.Folder)})
+          .style("opacity", function(d){ return d.data.filename.replace(pattern,'')=="mp3"|d.data.filename.replace(pattern,'')=="mp4"? 0.8: 0.5})
+      
+        // add extensions for files
+        svg
+          .selectAll("text")
+          .data(root.leaves())
+          .enter()
+          .append("text")
+            .attr("x", function(d){ return d.x0+3})    // to adjust position (more right)
+            .attr("y", function(d){ return d.y0+8})    // to adjust position (lower)
+          .text(function(d){ return d.data.filename.replace(pattern,'')})
+            .attr("font-size", "10px")
+            .attr("fill", "black")
+
+        // add folder names and file count  
+        svg
+          .selectAll("titles")
+          .data(root.descendants().filter(function(d){return d.depth == 1}))
+          .enter()
+          .append("text")
+            .attr("x", function(d){ return d.x0})
+            .attr("y", function(d){ return d.y0+4})
+          .text(function(d){ return d.data.key + ", " + d.data.count + " files"})
+            .attr("fill",  function(d){ return colourScale(d.data.key)})
+            .attr("font-size", "14px")
+            //.attr("fill", "red")
+            .attr("font-weight", "bold")
+
+        // add title
+        svg
+          .append("text")
+            .attr("x", width/2)
+            .attr("y", 0)
+            .attr("text-anchor" ,"middle")
+            .style("fill", "black")
+          .text("Contents of Root Directory")
+            .attr("font-size", "16px")
+            .attr("font-weight", "bold")
+
+      }
+
+      // add paragraph      
+    </script>
+    <div id="d1" style="width:480px;height:200px;">
+     <p style = "font-size:15px";> The root directory consists of four folders represented by the coloured blocks above. Each folder consists of files represented by rectangles. A square root scaling was applied to the file sizes to improve the visualization while still maintaining the relative size differences. Files with "mp3" and "mp4" extensions have black borders and are more opaque than other files.</p>
+   </div>
+  </body>
+</html>
